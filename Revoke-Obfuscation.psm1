@@ -999,8 +999,6 @@ C:\PS> Get-WinEvent -LogName "Microsoft-Windows-PowerShell/Operational" | Get-Rv
 
 C:\PS> Get-CSEventLogEntry -LogName Microsoft-Windows-PowerShell/Operational | Get-RvoScriptBlock
 
-.NOTES
-
 This is a personal project developed by Daniel Bohannon and Lee Holmes while employees at MANDIANT, A FireEye Company and Microsoft, respectively.
 
 Follow below steps (as admin) to use CimSweep's Get-CSEventLogEntry cmdlet to query local or remote PowerShell Operational event logs.
@@ -1078,7 +1076,6 @@ http://www.leeholmes.com/blog/
             $EventLogRecord = $inputFiles | ForEach-Object {
                 $curFileCount++
                 $Header = [System.Char[]](Get-Content $_ -Encoding Byte -TotalCount 75) -join ''
-
                 # Handle various file formats for ingesting PowerShell event log records.
                 if ($Header.StartsWith('ElfFile'))
                 {
@@ -1134,11 +1131,36 @@ http://www.leeholmes.com/blog/
 
                     $EventLogRecord
                 }
+                elseif ($Header -match '^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+[0-9]{1,2}\s([0-9]{1,2}:?){3}\s+[a-z]{3,4}-[a-z]{3,5}') {
+                    $regex = "^(?<date>(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+[0-9]{1,2}\s+(?:[0-9]{1,2}:?){3})" +
+                    "\s+(?<computer_name>[a-z]{3,5}-[a-z]{3,5}-[0-9]{1,4}\.[a-z]{3,6}\.intra)\s+" +
+                    "mswineventlog\s+2\s+Microsoft-Windows-PowerShell\/Operational\s+" +
+                    "(?<log_id>[0-9]{4,8})\s+" +
+                    "(?<DayMonthOrdinalDay>(?:mon|tue|wed|thu|fri|sat|sun)\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+[0-9]{1,2})\s+(?<Hour>(?:\d{1,2}:?){3})\s+(?<Year>\d{4})\s+4104\s+" +
+                    "Microsoft-Windows-PowerShell\s+" + 
+                    "(?<user_name>\b\w+\b)\s+user\s+warning\s" +
+                    "(?:[a-z]{3,5}-[a-z]{3,5}-[0-9]{1,4}\.[a-z]{3,6}\.intra)\s+execute\s+a\s+remote\s+command\s+" +
+                    "creating\s+scriptblock\s+text\s+\((?<block_nbr>[0-9]{1,2})\sof\s(?<block_total>[0-9]{1,2})\):\s+(?<script_block>.*)\s+scriptblock\s+id:\s+" +
+                    "(?<block_id>[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12})\s+" +
+                    "(?:path:\s+(?<path_script>.*))?(?:\s+)?[0-9]{1,}$"
+                    [Object[]] $EventLogRecord = $(Get-Content $_.FullName) | ForEach-Object {if ($_ -match $regex) {$Matches}} | Select-Object `
+                      @{Name = 'id'               ; Expression = { '4104' } },
+                      @{Name = 'TimeCreated'      ; Expression = { "$($_.DayMonthOrdinalDay) $($_.Year)  $($_.Hour)" } },
+                      @{Name = 'LevelDisplayName' ; Expression = { 'Warnings' } },
+                         @{Name = 'Properties'       ; Expression =  {`
+                            @(
+                                @{ Value = $_.block_nbr },
+                                @{ Value = $_.block_total },
+                                @{ Value = $_.script_block },
+                                @{ Value = $_.block_id }
+                            )
+                         }}
+                    $EventLogRecord
+                }
                 else
                 {
                     # Not a recognized file format. Let's just run Get-WinEvent, hope for the best, and let Get-WinEvent break the news to the user.
                     Write-Verbose "Parsing $curFileCount of $($inputFiles.Count) unrecognized format file(s) :: $($_.Name)"
-
                     Get-WinEvent -Path $_.FullName | Where-Object { $_.id -eq 4104 }
                 }
             }
@@ -1181,7 +1203,7 @@ http://www.leeholmes.com/blog/
     }
     
     Write-Verbose "Grouping and reassembling script blocks from the input $($EventLogRecord.Count) event log record(s)."
-
+    
     # Set exact script block values to ignore (unless the -Deep flag is set). This is to reduce noise for default script block values that we might not care about.
     $scriptBlockValuesToIgnoreForReduceSwitch  = @()
     $scriptBlockValuesToIgnoreForReduceSwitch += '$global:?'
@@ -1194,13 +1216,13 @@ http://www.leeholmes.com/blog/
 
     # Create an array to house all (reassembled) unique script block values to only return unique script blocks (unless the -Deep switch is set).
     $UniqueScriptBlocks = @()
-    
+
     # Grouping and sorting all script block events (EID 4104) to reassemble and add corresponding metadata to resultant array of PSCustomObjects.
     # Base code taken from https://blogs.msdn.microsoft.com/powershell/2015/06/09/powershell-the-blue-team/ per the Blue Team master, Lee Holmes (@Lee_Holmes).
     ($EventLogRecord | Group-Object { $_.Properties[3].Value } | ForEach-Object { $_.Group | Group-Object { $_.Properties[0].Value } } | ForEach-Object { $_.Group[0] }) | Group-Object {$_.Properties[3].Value} | ForEach-Object {
         $sortedScripts = $_.Group | Sort-Object { $_.Properties[0].Value }
         $mergedScript = ($sortedScripts | ForEach-Object { $_.Properties[2].Value }) -join ''
-        
+
         # Use continue variable to decide if reassembled script block should continue in metadata enrichment process.
         $continue = $true
         if (-not $Deep)
@@ -1272,6 +1294,7 @@ http://www.leeholmes.com/blog/
     }
 
     # Null out $UniqueScriptBlocks since it is no longer needed.
+    
     $UniqueScriptBlocks = $null
 }
 
