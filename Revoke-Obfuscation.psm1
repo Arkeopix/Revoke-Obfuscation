@@ -1132,14 +1132,20 @@ http://www.leeholmes.com/blog/
                     $EventLogRecord
                 }
                 elseif ($Header -match '^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+[0-9]{1,2}\s([0-9]{1,2}:?){3}\s+\b[a-z\d\.\-]+\b') {
+                #"^(?<date>(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+[0-9]{1,2}\s+(?:[0-9]{1,2}:?){3})\s+" +
+                #"(?<computer_name>\b[a-z\d\.\-]+\b)\s+mswineventlog\s+\d\s+Microsoft-Windows-PowerShell\/Operational\s+" +
+                #"(?<log_id>\d{4,15})\s+(?<DayMonthOrdinalDay>(?:mon|tue|wed|thu|fri|sat|sun)\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+[0-9]{1,2})\s+(?<Hour>(?:\d{1,2}:?){3})\s+(?<Year>\d{4})\s+" +
+                #"4104\s+Microsoft-Windows-PowerShell\s+(?<user_name>\b[a-z0-9\.\/_\-\s]+\b)\s+(?:user|well\sknown\sgroup|unknown)\s+" +
+                #"(?:warning|verbose)\s(?:\b[a-z\d\.\-]+\b)\s+(?:execute\s+a\s+remote\s+command|starting\scommand)\s+creating\s+scriptblock\s+text\s+\((?<block_nbr>[0-9]{1,2})\sof\s(?<block_total>[0-9]{1,2})\)" +
+                #":\s+(?<script_block>.*)\s+scriptblock\s+id:\s+((?<block_id>[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}))?"
+
                     $regex = "^(?<date>(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+[0-9]{1,2}\s+(?:[0-9]{1,2}:?){3})\s+" +
                     "(?<computer_name>\b[a-z\d\.\-]+\b)\s+mswineventlog\s+\d\s+Microsoft-Windows-PowerShell\/Operational\s+" +
                     "(?<log_id>\d{4,15})\s+(?<DayMonthOrdinalDay>(?:mon|tue|wed|thu|fri|sat|sun)\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+[0-9]{1,2})\s+(?<Hour>(?:\d{1,2}:?){3})\s+(?<Year>\d{4})\s+" +
-                    "4104\s+Microsoft-Windows-PowerShell\s+(?<user_name>\b[a-z\.\-\/_]+\b)\s+(?:user|well\sknown\sgroup|unknown)\s+" +
-                    "warning\s(?:\b[a-z\d\.\-]+\b)\s+execute\s+a\s+remote\s+command\s+creating\s+scriptblock\s+text\s+\((?<block_nbr>[0-9]{1,2})\sof\s(?<block_total>[0-9]{1,2})\)" +
+                    "4104\s+Microsoft-Windows-PowerShell\s+(?<user_name>\b[a-z0-9\.\/_\-\s]+\b)\s+(?:user|well\sknown\sgroup|unknown)\s+" +
+                    "(?:warning|verbose)\s(?:\b[a-z\d\.\-]+\b)\s+(?:execute\s+a\s+remote\s+command|starting\scommand)\s+creating\s+scriptblock\s+text\s+\((?<block_nbr>[0-9]{1,2})\sof\s(?<block_total>[0-9]{1,2})\)" +
                     ":\s+(?<script_block>.*)\s+scriptblock\s+id:\s+((?<block_id>[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}))?"
-                    
-                    [Object[]] $EventLogRecord = $(Get-Content $_.FullName) | ForEach-Object {if ($_ -match $regex) {$Matches} } | Select-Object `                         @{Name = 'id'               ; Expression = { '4104' } },
+                    [Object[]] $EventLogRecord = $(Get-Content $_.FullName -Encoding UTF8) | ForEach-Object { if ($_ -match $regex) { $Matches } } | Select-Object `                         @{Name = 'id'               ; Expression = { '4104' } },
                          @{Name = 'TimeCreated'      ; Expression = { "$($_.DayMonthOrdinalDay) $($_.Year)  $($_.Hour)" } },
                          @{Name = 'LevelDisplayName' ; Expression = { 'Warnings' } },
                          @{Name = 'Properties'       ; Expression =  {`
