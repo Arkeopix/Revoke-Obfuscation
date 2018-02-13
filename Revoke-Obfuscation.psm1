@@ -999,6 +999,8 @@ C:\PS> Get-WinEvent -LogName "Microsoft-Windows-PowerShell/Operational" | Get-Rv
 
 C:\PS> Get-CSEventLogEntry -LogName Microsoft-Windows-PowerShell/Operational | Get-RvoScriptBlock
 
+.NOTES
+
 This is a personal project developed by Daniel Bohannon and Lee Holmes while employees at MANDIANT, A FireEye Company and Microsoft, respectively.
 
 Follow below steps (as admin) to use CimSweep's Get-CSEventLogEntry cmdlet to query local or remote PowerShell Operational event logs.
@@ -1076,6 +1078,7 @@ http://www.leeholmes.com/blog/
             $EventLogRecord = $inputFiles | ForEach-Object {
                 $curFileCount++
                 $Header = [System.Char[]](Get-Content $_ -Encoding Byte -TotalCount 75) -join ''
+
                 # Handle various file formats for ingesting PowerShell event log records.
                 if ($Header.StartsWith('ElfFile'))
                 {
@@ -1145,7 +1148,8 @@ http://www.leeholmes.com/blog/
                     "4104\s+Microsoft-Windows-PowerShell\s+(?<user_name>\b[a-z0-9\.\/_\-\s]+\b)\s+(?:user|well\sknown\sgroup|unknown)\s+" +
                     "(?:warning|verbose)\s(?:\b[a-z\d\.\-]+\b)\s+(?:execute\s+a\s+remote\s+command|starting\scommand)\s+creating\s+scriptblock\s+text\s+\((?<block_nbr>[0-9]{1,2})\sof\s(?<block_total>[0-9]{1,2})\)" +
                     ":\s+(?<script_block>.*)\s+scriptblock\s+id:\s+((?<block_id>[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}))?"
-                    [Object[]] $EventLogRecord = $(Get-Content $_.FullName -Encoding UTF8) | ForEach-Object { if ($_ -match $regex) { $Matches } } | Select-Object `                         @{Name = 'id'               ; Expression = { '4104' } },
+                    [Object[]] $EventLogRecord = $(Get-Content $_.FullName -Encoding UTF8) | ForEach-Object { if ($_ -match $regex) { $Matches } } | Select-Object `
+                         @{Name = 'id'               ; Expression = { '4104' } },
                          @{Name = 'TimeCreated'      ; Expression = { "$($_.DayMonthOrdinalDay) $($_.Year)  $($_.Hour)" } },
                          @{Name = 'LevelDisplayName' ; Expression = { 'Warnings' } },
                          @{Name = 'Properties'       ; Expression =  {`
@@ -1162,6 +1166,7 @@ http://www.leeholmes.com/blog/
                 {
                     # Not a recognized file format. Let's just run Get-WinEvent, hope for the best, and let Get-WinEvent break the news to the user.
                     Write-Verbose "Parsing $curFileCount of $($inputFiles.Count) unrecognized format file(s) :: $($_.Name)"
+
                     Get-WinEvent -Path $_.FullName | Where-Object { $_.id -eq 4104 }
                 }
             }
@@ -1295,7 +1300,6 @@ http://www.leeholmes.com/blog/
     }
 
     # Null out $UniqueScriptBlocks since it is no longer needed.
-    
     $UniqueScriptBlocks = $null
 }
 

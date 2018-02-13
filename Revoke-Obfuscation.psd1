@@ -35,7 +35,7 @@
 RootModule = 'Revoke-Obfuscation.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.1'
+ModuleVersion = '1.2'
 
 # ID used to uniquely identify this module
 GUID = 'a0a9150d-a6a4-ad17-f325-a3a24fed0aa9'
